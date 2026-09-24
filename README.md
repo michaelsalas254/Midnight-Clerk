@@ -3,14 +3,14 @@
 A 2D tactile appraisal simulator for Godot 4 (built on 4.3), in the spirit of *Papers, Please*.
 A customer puts an item on your counter. Inspect it with your tools, then **Offer**, **Reject**, or hit the **Silent Alarm**.
 
-This is **Phase 1 (MVP)**. The focus is the item inspection system.
+**Done so far:** Phase 1 (item inspection) and Phase 2 (customer dialogue state machine).
 
 ## Running
 
 1. Open the folder in Godot 4.3 or newer and press **F5**.
 2. Optional: pull the real Higgsfield art (see [Art assets](#art-assets)).
 
-**Controls:** click and drag tools. The UV light and magnifier work while you hold them over an item. Drop the acid bottle on an item to test its gold.
+**Controls:** click and drag tools. The UV light and magnifier work while you hold them over an item. Drop the acid bottle on an item to test its gold. Click the dialogue text to skip a line that's still typing.
 
 ## Project layout
 
@@ -25,6 +25,9 @@ scenes/
 scripts/
   main.gd                      # Customer queue, action buttons, signal routing
   resources/pawn_item.gd       # PawnItem Resource (item data)
+  resources/customer.gd        # Customer Resource (who, portrait, lines, item)
+  dialogue/customer_dialogue.gd  # Customer state machine + portrait slide
+  dialogue/typewriter.gd       # Typewriter RichTextLabel (DialogueText)
   desk/desk.gd                 # Mouse pickup: finds the topmost draggable
   desk/draggable.gd            # Drag behaviour (lift, shadow, clamping)
   desk/pawn_item_node.gd       # Item reactions + public tool API
@@ -33,8 +36,9 @@ scripts/
   tools/magnifying_glass.gd
   tools/acid_test.gd
 data/items/*.tres              # Item definitions, made in the Inspector
+data/customers/*.tres          # Customers (each references one item)
 assets/                        # Art (Higgsfield-generated)
-tests/test_uv_flow.gd          # Headless drag + UV + acid smoke test
+tests/test_uv_flow.gd          # Headless smoke test: inspection + dialogue
 tools/                         # Asset fetch + placeholder scripts
 ```
 
@@ -44,9 +48,12 @@ tools/                         # Asset fetch + placeholder scripts
 Main (Node2D)                          main.gd
 ├── ShopView (Control)                 top half, 1920×540, mouse_filter = Ignore
 │   ├── Backdrop (TextureRect)         shop interior through the glass
-│   ├── CustomerPortrait (TextureRect) %CustomerPortrait
+│   ├── CustomerPortrait (TextureRect) %CustomerPortrait, slides in/out
 │   ├── DialogueBox (Panel)
-│   │   └── DialogueText (RichTextLabel)  %DialogueText, BBCode
+│   │   ├── SpeakerName (Label)        %SpeakerName                              [Phase 2]
+│   │   └── DialogueText (RichTextLabel)  %DialogueText, typewriter.gd, click = skip  [Phase 2]
+│   ├── CustomerDialogue (Node)        %CustomerDialogue, customer_dialogue.gd   [Phase 2]
+│   │                                  exports: portrait, text, speaker_label
 │   └── CounterEdge (ColorRect)        divides the shop from the desk
 ├── DeskSurface (TextureRect)          bottom half, mouse_filter = Ignore
 ├── Desk (Node2D)                      desk.gd, handles pickup
@@ -106,7 +113,56 @@ The game uses both, each where it fits best:
 | `is_stolen` | Silent Alarm hook |
 | `magnifier_note` | What the magnifier shows |
 
-**To add an item without writing code:** in the FileSystem dock, right-click `data/items`, choose **New Resource… → PawnItem**, fill in the fields, and drag the new `.tres` into **Main → Item Queue**.
+**To add an item without writing code:** in the FileSystem dock, right-click `data/items`, choose **New Resource… → PawnItem**, and fill in the fields. Then give it to a customer (next section).
+
+## 2b. Customer data: `Customer` Resource
+
+`scripts/resources/customer.gd`. The item queue is now a **customer queue**: `Main.customer_queue: Array[Customer]`, and each customer brings one `PawnItem`.
+
+| Field | Meaning |
+|---|---|
+| `customer_name`, `portrait`, `item` | Who they are, their art, and the `PawnItem` they bring |
+| `nervousness` (0–1) | Starting nerves. Higher means faster speech. Above 0.6, lines use `[shake]` and the portrait trembles |
+| `nervousness_per_trait` | How much nervousness rises each time you reveal a trait (runtime copy only; the resource isn't modified) |
+| `greeting_lines` | First words. The item's `claimed_description` is appended |
+| `trait_reactions` | `trait_id` → line, e.g. `"fake_signature"`, `"fake_gold"` |
+| `default_trait_reaction` | Used for any trait not in `trait_reactions` |
+| `haggle_lines` | Said before accepting a lowball offer (below 60% of claimed value) |
+| `accept_lines` / `refuse_lines` | Deal accepted / offer too insulting |
+| `leave_lines` / `alarm_lines` | You pressed Reject / Silent Alarm |
+
+Each line is picked at random from its list, and every list has a built-in fallback if it's empty. Lines may use `{name}`, `{item}`, and `{offer}`.
+
+**To add a customer:** right-click `data/customers`, choose **New Resource… → Customer**, fill it in, and drag it into **Main → Customer Queue**.
+
+## 2c. Dialogue state machine: `CustomerDialogue`
+
+```
+IDLE ─present()─▶ ARRIVING ─slide in─▶ GREETING ─line typed─▶ WAITING ◀──line typed── REACTING
+                  (queues reveals)                               └──react_to_trait()──▶┘
+                                        (a reveal during GREETING also jumps to REACTING)
+
+From GREETING / WAITING / REACTING:
+  negotiate(offer, accepted)  ─▶ NEGOTIATING ─(haggle line)─▶ LEAVING
+  send_away(REJECTED | ALARM) ─────────────────────────────▶ LEAVING
+
+LEAVING: farewell line → read pause → portrait slides out → IDLE, emits customer_left
+```
+
+- **Legal moves only.** `TRANSITIONS` lists every allowed edge, and `_set_state()` refuses anything else with a `push_error`. Public calls that don't fit the current state are ignored on purpose. For example, a reveal during LEAVING is ignored, and a reveal during ARRIVING is queued until the customer finishes the greeting.
+- **Stale callbacks can't fire.** Every step (typing a line, a pause, a slide) bumps a step counter. A completion callback only runs if no newer step has started, so interrupting a greeting with a reveal is safe.
+- **Inspection is never blocked.** The dialogue only listens. It doesn't gate tools or items.
+- **Main owns the outcome, dialogue owns the words.** Main still decides whether an offer is accepted, and handles cash and the police payout exactly as in Phase 1. It then tells the dialogue what happened.
+
+```
+Main ──present(customer)──────────────────▶ CustomerDialogue ──customer_arrived──▶ Main: spawn item, enable buttons
+PawnItemNode.trait_revealed ─▶ Main ──react_to_trait(id)──▶
+Offer button ─▶ Main ──negotiate(offer, accepted)──▶
+Reject / Alarm ─▶ Main ──send_away(reason)──▶
+                                           CustomerDialogue ──customer_left──▶ Main: free item, next customer
+```
+
+`Typewriter` (on DialogueText) is generic. `type_line(bbcode, cps)` reveals the line with `visible_characters`, pauses briefly after punctuation, and emits `line_finished`. It also emits `character_typed`, a hook for typing blips. Clicking the text calls `skip()`.
 
 ## 3–4. Drag and drop, and inspection signals
 
@@ -137,7 +193,7 @@ Exposure is reference-counted, so a second UV light later won't break it.
 
 ## Art assets
 
-All art was generated with **Higgsfield** (GPT Image 2.5, transparent backgrounds for sprites). The UV-revealed watch was made from the normal watch as a reference image, so the two line up when the texture swaps.
+All art was generated with **Higgsfield** (GPT Image 2.5, transparent backgrounds for sprites). The UV-revealed watch was made from the normal watch as a reference image, so the two line up when the texture swaps. The Phase 2 portraits (`customer_hoodie.png`, `customer_overcoat.png`) were generated with the leather-jacket portrait as a style reference, then run through Higgsfield's background remover.
 
 The repo ships **flat placeholder PNGs** at the same paths. To pull the real art:
 
@@ -157,12 +213,15 @@ godot --headless --script res://tools/make_placeholders.gd
 godot --headless --path . --script res://tests/test_uv_flow.gd
 ```
 
-This sends real mouse events through the viewport. It picks up the UV light, drags it onto the fake watch, and checks four things: the texture swaps, the trait is revealed, the texture reverts on drop, and the acid test catches the fake gold.
+This sends real mouse events through the viewport and plays a whole shift (32 checks):
+
+- **Inspection:** it picks up the UV light and drags it onto the fake watch. It checks that the texture swaps, the trait is revealed, the texture reverts on drop, and the acid test catches the fake gold.
+- **Dialogue:** it checks the portrait arrival, that actions stay locked until the customer arrives, and that the greeting types out and a real click skips it. It also checks trait-specific reactions and rising nervousness, Reject → LEAVING → next customer, a lowball offer (haggle, then accept), and Silent Alarm, ending with the end-of-shift announcement.
 
 ## Roadmap (one feature at a time, committed between each)
 
 - [x] Phase 1: PawnItem resource, drag and drop, UV / magnifier / acid inspection
-- [ ] Customer dialogue state machine
+- [x] Phase 2: Customer resource + dialogue state machine (typewriter, portrait slide)
 - [ ] Cash register and haggling
 - [ ] Police / Silent Alarm consequences
 - [ ] Scale tool (uses `expected_weight` vs `actual_weight`)

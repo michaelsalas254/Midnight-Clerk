@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="Customer" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/customer.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/characters/customer_leather_jacket.png" id="2_portrait"]
+[ext_resource type="Resource" path="res://data/items/fake_gold_watch.tres" id="3_item"]
+
+[resource]
+script = ExtResource("1_script")
+customer_name = "Vince"
+portrait = ExtResource("2_portrait")
+item = ExtResource("3_item")
+nervousness = 0.35
+nervousness_per_trait = 0.25
+greeting_lines = Array[String](["Evening, chief.", "You still open? Good."])
+trait_reactions = {
+"fake_gold": "Green? That's... that's the light in here. Bad light.",
+"fake_signature": "Whoa, what's with the purple lamp? Signature looks fine to me."
+}
+default_trait_reaction = "Hey, don't go poking at it like that."
+haggle_lines = Array[String](["{offer}? For Swiss? ...Rent's due. Fine."])
+accept_lines = Array[String](["Pleasure doing business. Don't wind it too tight.", "Cash is cash. See ya."])
+refuse_lines = Array[String](["{offer}? You're robbing me. I'm out."])
+leave_lines = Array[String](["Your loss, pal. Guy down the street'll take it."])
+alarm_lines = Array[String](["Why's the door lock clicking? Hey. HEY--"])

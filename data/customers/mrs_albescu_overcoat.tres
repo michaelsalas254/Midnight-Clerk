@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="Customer" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/customer.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/characters/customer_overcoat.png" id="2_portrait"]
+[ext_resource type="Resource" path="res://data/items/genuine_gold_watch.tres" id="3_item"]
+
+[resource]
+script = ExtResource("1_script")
+customer_name = "Mrs. Albescu"
+portrait = ExtResource("2_portrait")
+item = ExtResource("3_item")
+nervousness = 0.05
+nervousness_per_trait = 0.15
+greeting_lines = Array[String](["Good evening, young man."])
+trait_reactions = {}
+default_trait_reaction = "Look all you like, dear. It's honest."
+haggle_lines = Array[String](["{offer}. My husband would have laughed at you. ...But I'll take it."])
+accept_lines = Array[String](["Thank you. Take good care of it."])
+refuse_lines = Array[String](["{offer}? I think not. Good night."])
+leave_lines = Array[String](["Your loss, dear. Good night."])
+alarm_lines = Array[String](["The police? For me? Well, I never."])

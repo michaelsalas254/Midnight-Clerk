@@ -7,6 +7,8 @@ const PLACEHOLDERS := {
 	"res://assets/backgrounds/desk_surface.png": [Vector2i(1344, 752), Color(0.28, 0.18, 0.11), false],
 	"res://assets/backgrounds/shop_window.png": [Vector2i(1344, 752), Color(0.12, 0.2, 0.22), false],
 	"res://assets/characters/customer_leather_jacket.png": [Vector2i(880, 1168), Color(0.35, 0.3, 0.28), true],
+	"res://assets/characters/customer_hoodie.png": [Vector2i(880, 1168), Color(0.3, 0.32, 0.3), true],
+	"res://assets/characters/customer_overcoat.png": [Vector2i(880, 1168), Color(0.25, 0.3, 0.3), true],
 	"res://assets/items/gold_watch.png": [Vector2i(512, 512), Color(0.85, 0.68, 0.2), true],
 	"res://assets/items/gold_watch_uv.png": [Vector2i(512, 512), Color(0.3, 1.0, 0.4), true],
 	"res://assets/items/gold_chain.png": [Vector2i(512, 512), Color(0.95, 0.75, 0.25), true],

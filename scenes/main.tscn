@@ -1,9 +1,9 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
-[ext_resource type="Resource" path="res://data/items/fake_gold_watch.tres" id="2_fakewatch"]
-[ext_resource type="Resource" path="res://data/items/stolen_gold_chain.tres" id="3_chain"]
-[ext_resource type="Resource" path="res://data/items/genuine_gold_watch.tres" id="4_realwatch"]
+[ext_resource type="Resource" path="res://data/customers/vince_leather_jacket.tres" id="2_vince"]
+[ext_resource type="Resource" path="res://data/customers/danny_hoodie.tres" id="3_danny"]
+[ext_resource type="Resource" path="res://data/customers/mrs_albescu_overcoat.tres" id="4_albescu"]
 [ext_resource type="PackedScene" path="res://scenes/desk/pawn_item_node.tscn" id="5_itemscene"]
 [ext_resource type="Texture2D" path="res://assets/backgrounds/shop_window.png" id="6_shop"]
 [ext_resource type="Texture2D" path="res://assets/characters/customer_leather_jacket.png" id="7_customer"]
@@ -12,6 +12,8 @@
 [ext_resource type="PackedScene" path="res://scenes/tools/uv_blacklight.tscn" id="10_uv"]
 [ext_resource type="PackedScene" path="res://scenes/tools/acid_test.tscn" id="11_acid"]
 [ext_resource type="Script" path="res://scripts/desk/desk.gd" id="12_desk"]
+[ext_resource type="Script" path="res://scripts/dialogue/typewriter.gd" id="13_typewriter"]
+[ext_resource type="Script" path="res://scripts/dialogue/customer_dialogue.gd" id="14_dialogue"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
 content_margin_left = 20.0
@@ -31,7 +33,7 @@ corner_radius_bottom_left = 6
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
-item_queue = Array[Resource]([ExtResource("2_fakewatch"), ExtResource("3_chain"), ExtResource("4_realwatch")])
+customer_queue = Array[Resource]([ExtResource("2_vince"), ExtResource("3_danny"), ExtResource("4_albescu")])
 item_scene = ExtResource("5_itemscene")
 
 [node name="ShopView" type="Control" parent="."]
@@ -70,18 +72,35 @@ offset_right = 1820.0
 offset_bottom = 330.0
 mouse_filter = 2
 
+[node name="SpeakerName" type="Label" parent="ShopView/DialogueBox"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 28.0
+offset_top = 14.0
+offset_right = 832.0
+offset_bottom = 50.0
+theme_override_colors/font_color = Color(0.9, 0.68, 0.35, 1)
+theme_override_font_sizes/font_size = 24
+
 [node name="DialogueText" type="RichTextLabel" parent="ShopView/DialogueBox"]
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 28.0
-offset_top = 24.0
+offset_top = 56.0
 offset_right = 832.0
-offset_bottom = 216.0
-mouse_filter = 2
+offset_bottom = 224.0
+script = ExtResource("13_typewriter")
 theme_override_font_sizes/normal_font_size = 30
 theme_override_font_sizes/bold_font_size = 30
 theme_override_font_sizes/italics_font_size = 30
 bbcode_enabled = true
+
+[node name="CustomerDialogue" type="Node" parent="ShopView" node_paths=PackedStringArray("portrait", "text", "speaker_label")]
+unique_name_in_owner = true
+script = ExtResource("14_dialogue")
+portrait = NodePath("../CustomerPortrait")
+text = NodePath("../DialogueBox/DialogueText")
+speaker_label = NodePath("../DialogueBox/SpeakerName")
 
 [node name="CounterEdge" type="ColorRect" parent="ShopView"]
 layout_mode = 0

@@ -1,9 +1,10 @@
 extends Node2D
 ## Top-level coordinator. Owns the customer queue and routes signals between
-## the desk (items, tools) and the UI. Contains no inspection rules itself.
+## the desk (items, tools), the customer dialogue, and the HUD. Contains no
+## inspection rules or dialogue lines itself.
 
-## Items customers will bring in, in order. Drag .tres files from data/items here.
-@export var item_queue: Array[PawnItem] = []
+## Customers who walk in tonight, in order. Drag .tres files from data/customers here.
+@export var customer_queue: Array[Customer] = []
 @export var item_scene: PackedScene
 @export var starting_cash: int = 5000
 ## Area (in world space) that draggables may be moved within.
@@ -13,8 +14,7 @@ var cash: int = 0
 var _queue_index := -1
 var _current_item: PawnItemNode
 
-@onready var customer_portrait: TextureRect = %CustomerPortrait
-@onready var dialogue_text: RichTextLabel = %DialogueText
+@onready var dialogue: CustomerDialogue = %CustomerDialogue
 @onready var inspection_log: RichTextLabel = %InspectionLog
 @onready var cash_label: Label = %CashLabel
 @onready var offer_input: SpinBox = %OfferInput
@@ -41,7 +41,10 @@ func _ready() -> void:
 	offer_button.pressed.connect(_on_offer_pressed)
 	reject_button.pressed.connect(_on_reject_pressed)
 	alarm_button.pressed.connect(_on_alarm_pressed)
+	dialogue.customer_arrived.connect(_on_customer_arrived)
+	dialogue.customer_left.connect(_on_customer_left)
 
+	_set_actions_enabled(false)
 	_next_customer()
 
 
@@ -52,11 +55,20 @@ func _next_customer() -> void:
 		_current_item.queue_free()
 		_current_item = null
 	_queue_index += 1
-	if _queue_index >= item_queue.size():
+	if _queue_index >= customer_queue.size():
 		_end_shift()
 		return
-	_spawn_item(item_queue[_queue_index])
+	# The item goes down once they reach the counter (_on_customer_arrived).
+	dialogue.present(customer_queue[_queue_index])
+
+
+func _on_customer_arrived(customer: Customer) -> void:
+	_spawn_item(customer.item)
 	_set_actions_enabled(true)
+
+
+func _on_customer_left(_customer: Customer) -> void:
+	_next_customer()
 
 
 func _spawn_item(data: PawnItem) -> void:
@@ -75,8 +87,6 @@ func _spawn_item(data: PawnItem) -> void:
 	tween.tween_property(item, "global_position", item_spawn.global_position, 0.35)
 	tween.tween_property(item, "modulate:a", 1.0, 0.2)
 
-	customer_portrait.modulate.a = 1.0
-	dialogue_text.text = "[i]\"%s\"[/i]" % data.claimed_description
 	offer_input.value = roundi(data.true_value * 0.5)
 	inspection_log.clear()
 	_last_log_line = ""
@@ -85,16 +95,16 @@ func _spawn_item(data: PawnItem) -> void:
 
 func _end_shift() -> void:
 	_set_actions_enabled(false)
-	customer_portrait.modulate.a = 0.0
-	dialogue_text.text = "[b]Shift over.[/b] You walk out with $%d." % cash
+	dialogue.announce("[b]Shift over.[/b] You walk out with $%d." % cash)
 	_log("No more customers tonight.")
 
 
+## Settle the deal. The next customer comes in once this one has left
+## (CustomerDialogue.customer_left).
 func _resolve(message: String) -> void:
 	_set_actions_enabled(false)
 	_log(message)
 	_update_cash()
-	get_tree().create_timer(1.6).timeout.connect(_next_customer)
 
 
 # --- Action buttons --------------------------------------------------------
@@ -107,12 +117,12 @@ func _on_offer_pressed() -> void:
 		return
 	# The customer believes the item is genuine and haggles against that.
 	if offer < data.true_value * 0.25:
-		dialogue_text.text = "[i]\"$%d? You're robbing me. I'm out.\"[/i]" % offer
+		dialogue.negotiate(offer, false)
 		_resolve("Customer walked. No deal.")
 		return
 	var worth := data.get_actual_value()
 	cash += worth - offer
-	dialogue_text.text = "[i]\"Pleasure doing business.\"[/i]"
+	dialogue.negotiate(offer, true)
 	var profit := worth - offer
 	var color := "palegreen" if profit >= 0 else "salmon"
 	_resolve("Bought for $%d, really worth $%d. [color=%s]%+d[/color]" % [offer, worth, color, profit])
@@ -120,7 +130,7 @@ func _on_offer_pressed() -> void:
 
 func _on_reject_pressed() -> void:
 	var data := _current_item.data
-	dialogue_text.text = "[i]\"Your loss, pal.\"[/i]"
+	dialogue.send_away(CustomerDialogue.Farewell.REJECTED)
 	if data.is_counterfeit():
 		_resolve("[color=palegreen]Good call. It was a fake.[/color]")
 	else:
@@ -129,8 +139,8 @@ func _on_reject_pressed() -> void:
 
 func _on_alarm_pressed() -> void:
 	var data := _current_item.data
+	dialogue.send_away(CustomerDialogue.Farewell.ALARM)
 	if data.is_stolen:
-		dialogue_text.text = "[i]\"Wait, why are the lights flashing--\"[/i]"
 		cash += 200
 		_resolve("[color=palegreen]Stolen goods. Police reward: +$200.[/color]")
 	else:
@@ -140,8 +150,9 @@ func _on_alarm_pressed() -> void:
 
 # --- Inspection signals ----------------------------------------------------
 
-func _on_item_trait_revealed(_item: PawnItemNode, _trait_id: StringName, message: String) -> void:
+func _on_item_trait_revealed(_item: PawnItemNode, trait_id: StringName, message: String) -> void:
 	_log("[color=violet][b]FOUND:[/b][/color] " + message)
+	dialogue.react_to_trait(trait_id)
 
 
 func _on_item_inspected(_item: PawnItemNode, tool_name: String, message: String) -> void:

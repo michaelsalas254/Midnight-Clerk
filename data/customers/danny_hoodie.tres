@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="Customer" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/customer.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/characters/customer_hoodie.png" id="2_portrait"]
+[ext_resource type="Resource" path="res://data/items/stolen_gold_chain.tres" id="3_item"]
+
+[resource]
+script = ExtResource("1_script")
+customer_name = "Danny"
+portrait = ExtResource("2_portrait")
+item = ExtResource("3_item")
+nervousness = 0.7
+nervousness_per_trait = 0.2
+greeting_lines = Array[String](["H-hey. You buy gold, right?", "Quick one, okay? I'm in a hurry."])
+trait_reactions = {
+"fake_gold": "Plated? No way. Grandma said it was solid."
+}
+default_trait_reaction = "What? What'd you find? It's fine. It's fine."
+haggle_lines = Array[String](["{offer}? Okay. Okay, whatever, I just need it gone."])
+accept_lines = Array[String](["Thanks. I was never here, yeah?"])
+refuse_lines = Array[String](["{offer}?! Forget it. Forget this place."])
+leave_lines = Array[String](["Fine. Fine! I'll try the next place."])
+alarm_lines = Array[String](["Is that a siren? Is that for me?!"])
