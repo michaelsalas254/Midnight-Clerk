@@ -1,0 +1,55 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/tools/uv_blacklight.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/tools/uv_blacklight.png" id="2_tex"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_sensor"]
+radius = 90.0
+
+[sub_resource type="Gradient" id="Gradient_beam"]
+offsets = PackedFloat32Array(0, 0.55, 1)
+colors = PackedColorArray(0.75, 0.35, 1, 0.55, 0.55, 0.15, 1, 0.25, 0.4, 0, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_beam"]
+gradient = SubResource("Gradient_beam")
+width = 256
+height = 256
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_add"]
+blend_mode = 1
+
+[node name="UV Light" type="Area2D"]
+collision_mask = 0
+monitoring = false
+script = ExtResource("1_script")
+display_size = 190.0
+tool_name = "UV Light"
+activation = 0
+return_home_on_drop = false
+
+[node name="Shadow" type="Sprite2D" parent="."]
+modulate = Color(0, 0, 0, 0.45)
+texture = ExtResource("2_tex")
+
+[node name="Sprite" type="Sprite2D" parent="."]
+texture = ExtResource("2_tex")
+
+[node name="Shape" type="CollisionShape2D" parent="."]
+
+[node name="Sensor" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+input_pickable = false
+
+[node name="SensorShape" type="CollisionShape2D" parent="Sensor"]
+shape = SubResource("CircleShape2D_sensor")
+
+[node name="Beam" type="Sprite2D" parent="Sensor"]
+visible = false
+material = SubResource("CanvasItemMaterial_add")
+scale = Vector2(0.9, 0.9)
+texture = SubResource("GradientTexture2D_beam")

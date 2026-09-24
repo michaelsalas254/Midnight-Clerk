@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="PawnItem" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/pawn_item.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/items/gold_chain.png" id="2_tex"]
+
+
+[resource]
+script = ExtResource("1_script")
+item_name = "Gold Rope Chain"
+claimed_description = "Solid 14k. Was my grandma's. Came straight here from her place tonight."
+default_sprite = ExtResource("2_tex")
+
+desk_size = 260.0
+expected_weight = 60.0
+actual_weight = 60.0
+true_value = 1200
+counterfeit_value = 40
+has_fake_signature = false
+claims_gold = true
+is_real_gold = true
+is_stolen = true
+magnifier_note = "Clean 14K hallmark on the clasp. Fresh scratch where an engraved name was filed off."
