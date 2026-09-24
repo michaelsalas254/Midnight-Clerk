@@ -4,3 +4,6 @@
 *.translation
 export.cfg
 export_credentials.cfg
+
+# Packaged project downloads
+*.zip
